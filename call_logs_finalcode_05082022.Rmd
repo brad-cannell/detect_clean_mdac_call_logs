@@ -1,0 +1,1122 @@
+---
+title: "Prepping MDAC call logs for upload to FM Pro"
+date: "2021-12-03 <br> Updated: `r Sys.Date()`"
+---
+
+# ⭐️Overview
+
+In this file we prep the call logs that MDAC sends us to be uploaded into FM Pro.
+
+**From Sunil, 2021-10-22:**
+
+Hi Brad,
+
+It was great meeting with you today! As we discussed, please see the attached Excel file which includes sample data from FileMaker, indicating the fields I would need from the M Davis call file. I’ve indicated in __red__ the related field names that M Davis is using. I’ll program the database to expect three separate files during the import process.
+
+If there are any new fields you would like me to create in FileMaker (for example the duration of the call, M Davis field: CallDurationInSeconds) please provide these fields with a prefix (such as md_CallDurationSeconds). Let me know if you have any questions or if I can be of assistance. Feel to reach out over the weekend if something comes up when you are working on it.
+
+Thanks and have a great weekend,
+Sunil
+
+Attached files are in the codebooks folder.
+
+**From Sunil, 2021-10-27**
+
+Hi Brad and Kristen,
+
+The database is expecting three separate CSV files from the M Davis file. The first row should have field names. I can code it so that the database automatically matches the variable names up during import. The data will be imported into FileMaker tables PhoneRecruitment, CallLog, and ParticipantScheduler. Attached is an example of the data that the database is expecting to import in from the M Davis file. The first row contains the FileMaker field names and those in red are their corresponding fields from the M Davis file.
+
+Please let me know if you have any questions or if I can be of any assistance.
+
+Thanks,
+Sunil
+
+Attached files are in the codebooks folder.
+
+
+# 📦Load packages
+
+```{r message = FALSE}
+library(dplyr, warn.conflicts = FALSE)
+library(readr)
+library(tidyr)
+library(stringr)
+library(lubridate, warn.conflicts = FALSE)
+library(sjmisc)
+```
+
+# 📥Import data 
+
+Data is uploaded to KiteWorks by MDAC. https://securestor.uth.tmc.edu/w/edzP5fV5xV6WMykr
+
+Download from Kiteworks and import into R. 
+
+```{r}
+call_history <- read_csv("/Users/krist/Documents/UTHSPH/R Club/1833_DETECT_CallHistory_20220307.csv")
+```
+
+```{r}
+dim(call_history) # 23241   62
+```
+
+
+# 🚧Data management
+
+## Recoding variables
+
+### MOCA_SERIAL1
+
+MDAC codebook = "Now, I will ask you to count by subtracting 7 from 100, and then, keep subtracting 7 from your answer until I tell you to stop"  (1st subtraction).
+
+This variable contains the same information as xMocaSerial7_1 in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(xMocaSerial7_1 = MOCA_SERIAL1)
+
+```
+
+### MOCA_SERIAL2
+
+MDAC codebook = "Now, I will ask you to count by subtracting 7 from 100, and then, keep subtracting 7 from your answer until I tell you to stop"  (2nd subtraction).
+
+This variable contains the same information as xMocaSerial7_2 in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(xMocaSerial7_2 = MOCA_SERIAL2)
+
+```
+
+### MOCA_SERIAL3
+
+MDAC codebook = "Now, I will ask you to count by subtracting 7 from 100, and then, keep subtracting 7 from your answer until I tell you to stop"  (3rd subtraction).
+
+This variable contains the same information as xMocaSerial7_3 in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(xMocaSerial7_3 = MOCA_SERIAL3)
+
+```
+
+### MOCA_SERIAL4
+
+MDAC codebook = "Now, I will ask you to count by subtracting 7 from 100, and then, keep subtracting 7 from your answer until I tell you to stop"  (4th subtraction).
+
+This variable contains the same information as xMocaSerial7_4 in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(xMocaSerial7_4 = MOCA_SERIAL4)
+
+```
+
+### MOCA_SERIAL5
+
+MDAC codebook = "Now, I will ask you to count by subtracting 7 from 100, and then, keep subtracting 7 from your answer until I tell you to stop"  (5th subtraction).
+
+This variable contains the same information as xMocaSerial7_5 in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(xMocaSerial7_5 = MOCA_SERIAL5)
+
+```
+
+### ResLastCallDate
+
+MDAC codebook = Date of call "yyyyMMdd" format.
+
+This variable contains the same information as xMocaOrientationDate, EntryDate, CallDate in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(ResLastCallDate_new = ymd(ResLastCallDate))
+
+call_history <- call_history %>% 
+  mutate(ResLastCallDate_new = format(
+    as.Date(ResLastCallDate_new, '%Y-%m-%d'), "%m/%d/%Y")
+  )
+
+call_history <- call_history %>% 
+  mutate(xMocaOrientationDate = ResLastCallDate_new)
+
+call_history <- call_history %>% 
+  mutate(EntryDate = ResLastCallDate_new)
+
+call_history <- call_history %>% 
+  mutate(CallDate = ResLastCallDate_new)
+```
+
+### S_RES
+
+MDAC codebook = Case result.
+
+This variable contains similar information to xRecordStatus in FM Pro.
+
+S_RES has more options than the original Record Status variable in the DETECT Phone Recruitment Response Options Google sheet (https://docs.google.com/spreadsheets/d/1uHl7fChdaLSLdg9-MiJe9vqmh80oWy3mU6SIkswRhS8/edit?usp=sharing), so the S_RES options are grouped into the original Record Status response options.
+
+```{r}
+## NEW WAY
+call_history <- call_history %>% 
+  mutate(xRecordStatus = case_when(
+    resCallCount >= 5 & S_RES != "CO" ~ "Not scheduled after 5 attempts",
+    S_RES == "40" ~ "Unverified",
+    S_RES == "46" ~ "Unverified",
+    S_RES == "47" ~ "Unverified",
+    S_RES == "42" ~ "Unverified",
+    S_RES == "26" ~ "Unverified",
+    S_RES == "P1" ~ "Unverified",
+    S_RES == "P2" ~ "Unverified",
+    S_RES == "P5" ~ "Unverified",
+    S_RES == "25" ~ "Unverified",
+    S_RES == "w1" ~ "Unverified",
+    S_RES == "W2" ~ "Unverified",
+    S_RES == "W3" ~ "Unverified",
+    S_RES == "W4" ~ "Unverified",
+    S_RES == "W6" ~ "Unverified",
+    S_RES == "49" ~ "Incomplete",
+    S_RES == "43" ~ "Incomplete",
+    S_RES == "48" ~ "Incomplete",
+    S_RES == "W0" ~ "Incomplete",
+    S_RES == "44" ~ "Incomplete",
+    S_RES == "90" ~ "Incomplete",
+    S_RES == "P4" ~ "Incomplete",
+    S_RES == "50" ~ "Incomplete",
+    S_RES == "02" ~ "Incomplete",
+    S_RES == "01" ~ "Incomplete",
+    S_RES == "51" ~ "Bad contact number",
+    S_RES == "60" ~ "Bad contact number",
+    S_RES == "52" ~ "Bad contact number",
+    S_RES == "P6" ~ "Bad contact number",
+    S_RES == "P7" ~ "Bad contact number",
+    S_RES == "41" ~ "Bad contact number",
+    S_RES == "P8" ~ "Bad contact number",
+    S_RES == "P3" ~ "Bad contact number",
+    S_RES == "CO" ~ "Participant scheduled",
+    S_RES == "70" ~ "Participant refused",
+    S_RES == "71" ~ "Participant refused",
+    S_RES == "72" ~ "Participant refused",
+    S_RES == "74" ~ "Participant refused",
+    S_RES == "P9" ~ "Participant refused",
+    S_RES == "97" ~ "Participant refused",
+    S_RES == "12" ~ "Participant not eligible",
+    S_RES == "11" ~ "Participant not eligible",
+    S_RES == "13" ~ "Participant not eligible",
+    S_RES == "30" ~ "Participant not eligible",
+    S_RES == "31" ~ "Participant not eligible",
+    S_RES == "98" ~ "Participant not eligible",
+    S_RES == "32" ~ "Participant not eligible",
+    S_RES == "03" ~ "Participant not eligible",
+    S_RES == "04" ~ "Participant not eligible",
+    S_RES == "05" ~ "Participant not eligible",
+    S_RES == "35" ~ "Participant hang up"
+  )
+)
+```
+
+### PTCARERPTNUM
+
+MDAC codebook = [Imported value].
+
+This variable contains the same information as MedstarID in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(MedstarID = PTCARERPTNUM)
+
+```
+
+### INT00
+
+MDAC codebook = "Hello, I´m $I calling on behalf of MedStar Mobile Healthcare. They Provide ambulance service in the D/FW area. May I please speak with [FNAME] [LNAME]?"
+
+This variable contains similar information to PhoneInitialRequest in FM Pro, but includes additional response options. For this reason, it will be labeled as md_INT00 upon export to FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(md_PhoneInitialRequest = recode(
+    INT00,
+    "01" = "Patient answered",
+    "02" = "Phone given to patient",
+    "03" = "Patient deceased",
+    "04" = "Patient permanently impaired or disabled",
+    "05" = "Patient currently unavailable",
+    "40" = "Answering Machine",
+    "35" = "Hang up",
+    "41" = "Wrong number",
+    "70" = "Add to `Do Not Call` list",
+    "71" = "Hard refusal",
+    "72" = "Soft refusal",
+    "25" = "Language Barrier - SPANISH",
+    "26" = "Language Barrier (NON-Spanish)"
+  )
+)
+```
+
+### INT04
+
+MDAC codebook = "I understand. When would be a good time to reach them?"
+
+This variable contains the same information as PhoneBetterTime in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(PhoneBetterTime = recode(
+    INT04,
+    "43" = "Schedule callback",
+    "44" = "Indefinite callback"
+  )
+)
+```
+
+### PH_MORE_INFO
+
+MDAC codebook = "Thanks for calling us back. I was actually calling to ask you if you are willing to participate in a research study we are conducting with the University of Texas Health Science Center at Houston about the health and safety of North Texans who are at least 65 years old. If eligible, we would give you a $25 gift card for your time. Can I tell you a little bit more about it?", condition = "INBOUND = 1")    [NOTE: start reading here if the patient was NOT the person who initially answered the phone and then continue below]    Hello Mr./Ms. [LNAME].  I´m $I calling on behalf of  MedStar Mobile Healthcare. They provide ambulance service in the D/FW area. Just so you know, I´m not calling to collect a payment or anything like that.    [NOTE: start reading here if the patient was the person who initially answered the phone]    Hello Mr./Ms. [LNAME]. I´m actually calling to ask you if you are willing to participate in a research study we are conducting with the University of Texas Health Science Center at Houston about the health and safety of North Texans who are at least 65 years old. If so, we would give you a $25 gift card for your time. Can I tell you a little bit more about it?"
+
+This variable contains the same information as PhoneMoreInfo in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(PhoneMoreInfo = recode(
+    PH_MORE_INFO,
+    "1" = "Yes",
+    "2" = "No",
+    "3" = "Currently unavailable",
+    "9" = "Hang up"
+  )
+ )
+```
+
+### PH_ELIG_CONS
+
+MDAC codebook = "Great. Our records show that MedStar medics treated you on [DATE_T]. Because of that, you may be eligible to receive a follow-up visit from one of the paramedics who would give you a brief medical exam and ask you some questions about your overall health and safety as part of a research study for approximately one and a half hours. At the end of the visit, they will give you a gift card and connect you with health resources and equipment, if you would like them to. There are no known risks other than possible breach of confidentiality. Are you interested in participating?"
+
+This variable contains the same information as PhoneEligibleConsent in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(PhoneEligibleConsent = recode(
+    PH_ELIG_CONS,
+    "1" = "Yes",
+    "2" = "No",
+    "9" = "Hang-up"
+  )
+)
+```
+
+### POSTCARD
+
+MDAC codebook = "Great, thank you. We send out postcards to our selected participants before contacting them to let them know we are going to be giving them a call soon. Do you remember receiving a postcard telling you about this study?"
+
+This variable contains the same information as PostcardRecall in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(PostcardRecall = recode(
+    POSTCARD,
+    "1" = "Yes",
+    "2" = "No",
+    "9" = "Hang-up"
+  )
+)
+```
+
+### PH_HEAR_DEV
+
+MDAC codebook = "Before we can schedule that visit, I need to ask you a few questions to quickly check your hearing and memory.     So, let´s make sure you are in a quiet place that doesn´t have a lot of distractions. Will you please make sure that all papers, pencils, books, calendars, newspapers, and anything else that might distract you are removed from your sight? Also, please be sure that the room is quiet; there should be no television, radio or music playing.    [NOTE: Wait for the patient to confirm that distractions are removed and they are ready to move on.]    Thank you, now do you use a hearing device?"
+
+This variable contains the same information as PhoneHearingDevice in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(PhoneHearingDevice = recode(
+    PH_HEAR_DEV,
+    "1" = "Yes",
+    "2" = "No",
+    "9" = "Refused/hang up"
+  )
+)
+```
+
+### PH_HEAR_DEVI
+
+MDAC codebook = "Is it [hearing device] in place right now? [NOTE: If the patient tells you their hearing device is not in place, please ask them if they are willing to put it in/on. If they are unwilling, then check ``refused´´.]"
+
+This variable contains the same information as PhoneHearingDeviceIn in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(PhoneHearingDeviceIn = recode(
+    PH_HEAR_DEVI,
+    "1" = "Yes",
+    "9" = "Refused/hang up"
+  )
+)
+```
+
+### PHHEARCHCK
+
+MDAC codebook = "Will you please repeat the following silly statement back to me so that I can make sure you´re able to hear me well enough: ``I have a cat so all I need is a dog.´´    [NOTE: Repeat the statement up to one time if the patient asks. If the patient asks for you to repeat a second time, apologize and say that you aren´t allowed to.]    [NOTE: If the patient is confused about the statement, just let them know it doesn´t have any meaning. We just have to say something to make sure you can hear us.]"
+
+This variable contains the same information as PhoneHearingCheck in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(PhoneHearingCheck = recode(
+    PHHEARCHCK,
+    "1" = "Correct",
+    "2" = "Incorrect",
+    "9" = "Refused/hang up"
+  )
+)
+```
+
+### MOCA_MEMORY1
+
+MDAC codebook = "Thank you. Now I´m going to ask you 10 questions to test your thinking and memory. Some of these questions may be easier than others and some may seem strange. I don´t want you to worry about it. Just do the best you can. Are you ready?    This is a memory test. I am going to read a list of words that you will have to remember now and later on. Listen carefully. When I am through, tell me as many words as you can remember. It doesn´t matter in what order you say them."    [NOTE: Read the list of five words at a rate of one per second, giving the following instructions:]     FACE - VELVET - CHURCH - DAISY - RED      [NOTE: Mark a check in the allocated space for each word the patient produces on the first trial. You may not correct the patient if (s)he recalls a deformed word or a word that sounds like the target word. When the patient indicates that (s)he has finished (has recalled all words), or can recall no more words, read the list a second time with the following instructions:]     I am going to read the same list for a second time. Try to remember and tell me as many words as you can, including words you said the first time.    FACE - VELVET - CHURCH - DAISY - RED."
+
+This variable contains the same information as MocaMemory1 in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(MocaMemory1 = recode(
+    MOCA_MEMORY1,
+    "1" = "Face",
+    "2" = "Velvet",
+    "3" = "Church",
+    "4" = "Daisy",
+    "5" = "Red",
+    "12" = "Face,Velvet",
+    "13" = "Face,Church",
+    "14" = "Face,Daisy",
+    "15" = "Face,Red",
+    "23" = "Velvet,Church",
+    "24" = "Velvet,Daisy",
+    "25" = "Velvet,Red",
+    "34" = "Church,Daisy",
+    "35" = "Church,Red",
+    "45" = "Daisy,Red",
+    "123" = "Face,Velvet,Church",
+    "124" = "Face,Velvet,Daisy",
+    "125" = "Face,Velvet,Red",
+    "134" = "Face,Church,Daisy",
+    "135" = "Face,Church,Red",
+    "145" = "Face,Daisy,Red",
+    "234" = "Velvet,Church,Daisy",
+    "235" = "Velvet,Church,Red",
+    "245" = "Velvet,Daisy,Red",
+    "345" = "Church,Daisy,Red",
+    "1234" = "Face,Velvet,Church,Daisy",
+    "1235" = "Face,Velvet,Church,Red",
+    "1245" = "Face,Velvet,Daisy,Red",
+    "1345" = "Face,Church,Daisy,Red",
+    "12345" = "Face,Velvet,Church,Daisy,Red"
+  )
+)
+```
+
+### MOCA_MEMORY2
+
+MDAC codebook = Second trial of recalling words from MOCA_MEMORY1.
+
+This variable contains the same information as MocaMemory2 in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(MocaMemory2 = recode(
+    MOCA_MEMORY2,
+    "1" = "Face",
+    "2" = "Velvet",
+    "3" = "Church",
+    "4" = "Daisy",
+    "5" = "Red",
+    "12" = "Face,Velvet",
+    "13" = "Face,Church",
+    "14" = "Face,Daisy",
+    "15" = "Face,Red",
+    "23" = "Velvet,Church",
+    "24" = "Velvet,Daisy",
+    "25" = "Velvet,Red",
+    "34" = "Church,Daisy",
+    "35" = "Church,Red",
+    "45" = "Daisy,Red",
+    "123" = "Face,Velvet,Church",
+    "124" = "Face,Velvet,Daisy",
+    "125" = "Face,Velvet,Red",
+    "134" = "Face,Church,Daisy",
+    "135" = "Face,Church,Red",
+    "145" = "Face,Daisy,Red",
+    "234" = "Velvet,Church,Daisy",
+    "235" = "Velvet,Church,Red",
+    "245" = "Velvet,Daisy,Red",
+    "345" = "Church,Daisy,Red",
+    "1234" = "Face,Velvet,Church,Daisy",
+    "1235" = "Face,Velvet,Church,Red",
+    "1245" = "Face,Velvet,Daisy,Red",
+    "1345" = "Face,Church,Daisy,Red",
+    "12345" = "Face,Velvet,Church,Daisy,Red"
+  )
+)
+```
+
+### MOCA_DIGFORW
+
+MDAC codebook = "I am going to say some numbers and when I am through, repeat them to me exactly as I said them.    [NOTE: Read the list of five numbers at a rate of one digit per second]    2, 1, 8, 5, 4."
+
+This variable contains the same information as MocaDigitForward in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(MocaDigitForward = recode(
+   MOCA_DIGFORW,"0" = "Sequence not correctly repeated",
+   "1" = "Sequence correctly repeated (2, 1, 8, 5, 4)",
+   "9" = "Refused/hang up"
+  )
+)
+```
+
+### MOCA_DIGBACK
+
+MDAC codebook = "Now I am going to say some more numbers, but when I am through you must repeat them to me in the backward order.    [NOTE: Read the three number sequence at a rate of one digit per second. If the patient repeats the sequence in the forward order, the examiner may not ask the patient to repeat the sequence in backward order at this point.]    7, 4, 2."
+
+This variable contains the same information as MocaDigitBackward in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(MocaDigitBackward = recode(
+   MOCA_DIGBACK,
+   "0" = "Sequence not correctly repeated",
+   "1" = "Sequence correctly repeated (2, 4, 7)",
+   "9" = "Refused/hang up"
+  )
+)
+```
+
+### MOCA_VIGIL
+
+MDAC codebook = "I am going to read a sequence of letters. Every time I say the letter A, SAY YES one time. If I say a different letter, do not SAY YES.      [NOTE: Read the list of letters at a rate of one digit per second.]    F- B - A - C - M - N - A - A - J - K - L - B - A - F - A - K - D - E - A - A - A - J - A - M - O - F - A - A - B."
+
+This variable contains the same information as MocaVigilance in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(MocaVigilance = recode(
+   MOCA_VIGIL,
+   "0" = "Two or more errors (an error is a tap on a wrong letter or a failure to tap on letter A)",
+   "1" = "Zero or one error (an error is a tap on a wrong letter or a failure to tap on letter A)",
+   "9" = "Refused/hang up"
+  )
+)
+```
+
+### SERIAL_SCORE
+
+MDAC codebook = Score for "Moca_Serial" subtractions.
+
+This variable contains the same information as MocaSerial7 in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(MocaSerial7 = recode(
+   SERIAL_SCORE,
+   "0" = "Zero correct subtractions",
+   "1" = "One correct subtraction",
+   "2" = "Two or three correct subtractions",
+   "3" = "Two or three correct subtractions",
+   "4" = "Four or five correct subtractions",
+   "5" = "Four or five correct subtractions"
+  )
+)
+```
+
+### MOCA_SENTREP
+
+MDAC codebook = "I am going to read you a sentence. Repeat it after me, exactly as I say it [pause]: ``I only know that John is the one to help today.´´    [NOTE: Wait for response]    Now I am going to read you another sentence. Repeat it after me, exactly as I say it [pause]: ``The cat always hid under the couch when dogs were in the room.´´    [NOTE: Repetitions must be exact. Be alert for omissions (e.g., omitting "only"), substitutions/additions (e.g., substituting "only" for "always"), grammar errors/altering plurals (e.g. "hides" for "hid"), etc.]"
+
+This variable contains the same information as MocaSentenceRep in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(MocaSentenceRep = recode(
+   MOCA_SENTREP,
+   "0" = "Neither sentences correctly repeated",
+   "1" = "One sentence correctly repeated",
+   "2" = "Both sentences correctly repeated",
+   "9" = "Refused/hang up"
+  )
+)
+```
+
+### MOCA_VERBFLU
+
+MDAC codebook = "Now, I want you to tell me as many words as you can think of that begin with the letter F. I will tell you to stop after one minute. Proper nouns, numbers, and different forms of a verb are not permitted. Are you ready?    [NOTE: Wait for response. Time for 60 sec.]    [NOTE: If the patient names two consecutive words that begin with another letter of the alphabet, the examiner repeats the target letter if the instructions have not yet been repeated.]    Stop."
+
+This variable contains the same information as MocaVerbFluency in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(MocaVerbFluency = recode(
+   MOCA_VERBFLU,
+   "0" = "Fewer than 11 words generated",
+   "1" = "11 or more words generated",
+   "9" = "Refused/hang up"
+  )
+)
+```
+
+### MOCA_ABSTRAC
+
+MDAC codebook = "I will give you two words and I would like you to tell me to what category they belong to [pause]: ``an orange and a banana.´´      [NOTE: If the patient replies correctly]  Yes, both items are part of the category Fruits.      [NOTE: If the patient answers in a concrete manner (but not ``fruits´´, give one additional prompt]  Tell me another category to which these items belong to.    [NOTE: If the patient does not give the appropriate response (fruits), then say:]    Yes, and they also both belong to the category Fruits.      [NOTE: No additional instructions or clarifications are given]   Now, a train and a bicycle.    Now, a ruler and a watch.      [NOTE: A prompt (one for the entire abstraction section) may be given if none was used during the example.]      [NOTE: Only the last two pairs are scored. One point is given for each pair correctly answered.]    The following responses are acceptable: - train-bicycle = means of transportation, means of travelling, you take trips in both - ruler-watch = measuring instruments, used to measure  The following responses are not acceptable: - train-bicycle = they have wheels - ruler-watch = they have numbers."
+
+This variable contains similar information to MocaAbstraction in FM Pro, but includes additional response options. For this reason, it will be labeled as md_MOCA_ABSTRAC upon export to FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(md_MocaAbstraction = recode(
+   MOCA_ABSTRAC,
+   "0" = "No correct answer for `train and bicycle` and `ruler and watch`",
+   "1" = "One correct answer for either `train and bicycle` or `ruler and watch`",
+   "2" = "Answered correctly for both `train and bicycle` and `ruler and watch`",
+   "9" = "Refused/hang up"
+  )
+)
+```
+
+### MOCA_DELREC
+
+MDAC codebook = "I read some words to you earlier, which I asked you to remember. Tell me as many of those words as you can remember.    [NOTE: Make a check mark for each of the words correctly recalled spontaneously without any cues, in the allocated space]    FACE - VELVET - CHURCH - DAISY - RED."
+
+Format = numeric string containing all choices correctly recalled.  e.g. "235" means Velvet, Church, and Red were correctly recalled.
+
+This variable contains the same information as MocaDelayRecall in FM Pro.
+
+
+```{r}
+# Separating each digit in the MOCA_DELREC number into separate columns
+
+MOCA_DELREC_separated <- t(sapply(
+  call_history$MOCA_DELREC,
+  function(x) substring(
+    x, first=c(1,2,3,4,5),last=c(1,2,3,4,5)
+  )
+ )
+)
+
+
+# Binding the new columns created in the matrix above to the call_history dataset
+
+call_history <- cbind(call_history, MOCA_DELREC_separated)
+
+
+# Renaming each new column
+
+call_history <- rename(call_history, MDR_first="1")
+call_history <- rename(call_history, MDR_second="2")
+call_history <- rename(call_history, MDR_third="3")
+call_history <- rename(call_history, MDR_fourth="4")
+call_history <- rename(call_history, MDR_fifth="5")
+
+
+# Recoding each digit in each of the new columns 
+
+call_history <- call_history %>% 
+ mutate(MDR_first = recode(
+    MDR_first,
+    "1" = "Face",
+    "2" = "Velvet",
+    "3" = "Church",
+    "4" = "Daisy",
+    "5" = "Red"
+  )
+)
+
+call_history <- call_history %>% 
+ mutate(MDR_second = recode(
+    MDR_second,
+    "1" = "Face",
+    "2" = "Velvet",
+    "3" = "Church",
+    "4" = "Daisy",
+    "5" = "Red"
+  )
+)
+
+call_history <- call_history %>% 
+ mutate(MDR_third = recode(
+    MDR_third,
+    "1" = "Face",
+    "2" = "Velvet",
+    "3" = "Church",
+    "4" = "Daisy",
+    "5" = "Red"
+  )
+)
+
+call_history <- call_history %>% 
+ mutate(MDR_fourth = recode(
+    MDR_fourth,
+    "1" = "Face",
+    "2" = "Velvet",
+    "3" = "Church",
+    "4" = "Daisy",
+    "5" = "Red"
+  )
+)
+
+call_history <- call_history %>% 
+ mutate(MDR_fifth = recode(
+    MDR_fifth,
+    "1" = "Face",
+    "2" = "Velvet",
+    "3" = "Church",
+    "4" = "Daisy",
+    "5" = "Red"
+  )
+)
+
+
+# Concatenating the variables into MoceDelayRecall
+
+call_history$MocaDelayRecall <- paste(
+  call_history$MDR_first,
+  call_history$MDR_second,
+  call_history$MDR_third,
+  call_history$MDR_fourth,
+  call_history$MDR_fifth,
+  sep=","
+)
+
+```
+
+
+### OR_PLACECITY
+
+MDAC codebook = "Now, tell me the name of the place you are in, and which city it is in.    [INTERVIEWER, check the box for each item which is correct.  For the place, any reasonable answer should be deemed correct, e.g. my living room, my house, the store, etc.  Answers such as "on a spaceship" or "I don't know" are incorrect.  For the city, it is correct if it matches the city listed below.  Again "I don't know" is incorrect.]    Correct City:  [CITY]."
+
+Format = numeric string containing all choices correctly recalled.  e.g. "12" means both place and city were correctly provided.
+
+This variable contains information that will be included in MocaOrientation in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(OR_PLACECITY = recode(
+   OR_PLACECITY,
+   "1" = "Place",
+   "2" = "City",
+   "12" = "Place,City"
+  )
+)
+```
+
+### MocaOrientation
+
+The "MocaOrientation" variable shown in the "M Davis Filemaker Required Fields" Microsoft Excel Sheet requires combining the results of variables "OR_DATE", "OR_DAY", and "OR_PLACECITY". "MocaOrientation" should be formatted as a character string using a combination of the words "Date", "Month", "Year", "Day", "Place", and "City", depending on the participant's success during the corresponding assessment.
+
+To create "MocaOrientation", we can first alter the "OR_DATE" variable to display the word "Date" for participants who were successful in the assessment corresponding to "OR_DATE", "Year" for participants who stated the correct year, and "Month: for participants who stated the correct month.
+
+
+```{r}
+# Separating OR_DATE into year, month, and day columns
+
+OR_DATE_separated <- t(sapply(call_history$OR_DATE, function(x) substring(x, first=c(1,5,7), last=c(4,6,8))))
+
+
+# Binding the new columns created in the matrix above to the call_history dataset
+
+call_history <- cbind(call_history, OR_DATE_separated)
+
+
+# Renaming the new columns
+
+call_history <- rename(call_history, ORD_year = "1")
+call_history <- rename(call_history, ORD_month = "2")
+call_history <- rename(call_history, ORD_day = "3")
+
+
+# Separating ResLastCallDate into year, month, and day columns
+
+ResLastCallDate_separated <- t(sapply(call_history$ResLastCallDate, function(x) substring(x, first=c(1,5,7), last=c(4,6,8))))
+
+
+# Binding the new columns created in the matrix above to the call_history dataset
+
+call_history <- cbind(call_history, ResLastCallDate_separated)
+
+
+# Renaming the new columns
+
+call_history <- rename(call_history, RLCD_year = "1")
+call_history <- rename(call_history, RLCD_month = "2")
+call_history <- rename(call_history, RLCD_day = "3")
+
+
+# Converting each variable to character and then to numeric
+
+call_history$ORD_year <- as.character(call_history$ORD_year)
+call_history$ORD_year <- as.numeric(call_history$ORD_year)
+call_history$ORD_month <- as.character(call_history$ORD_month)
+call_history$ORD_month <- as.numeric(call_history$ORD_month)
+call_history$ORD_day <- as.character(call_history$ORD_day)
+call_history$ORD_day <- as.numeric(call_history$ORD_day)
+
+call_history$RLCD_year <- as.character(call_history$RLCD_year)
+call_history$RLCD_year <- as.numeric(call_history$RLCD_year)
+call_history$RLCD_month <- as.character(call_history$RLCD_month)
+call_history$RLCD_month <- as.numeric(call_history$RLCD_month)
+call_history$RLCD_day <- as.character(call_history$RLCD_day)
+call_history$RLCD_day <- as.numeric(call_history$RLCD_day)
+
+
+# Creating difference variables to determine if the individual got the date, year, and/or month correct
+
+call_history <- call_history %>% 
+ mutate(OR_DATE_datediff = (ResLastCallDate-OR_DATE)) %>% 
+  mutate(OR_DATE_date = case_when(OR_DATE_datediff == 0~'Date')) %>%
+  mutate(OR_DATE_yeardiff = (RLCD_year-ORD_year)) %>% 
+  mutate(OR_DATE_year = case_when(OR_DATE_yeardiff == 0~'Year')) %>%
+  mutate(OR_DATE_monthdiff = (RLCD_month-ORD_month)) %>% 
+  mutate(OR_DATE_month = case_when(OR_DATE_monthdiff == 0~'Month'))
+
+```
+
+Next, we can alter the "OR_DAY" variable to display the word "Day" for participants who were successful in the assessment corresponding to "OR_DAY". We can do this by:
+
+1. Putting the "ResLastCallDate" into the Year/Month/Day format.
+
+2. Creating a variable called "weekday" and filling it with the names of the weekdays corresponding to the dates in "ResLastCallDate".
+
+3. Recoding "weekday" to match the formatting of the variable "OR_DAY". [Sunday = 1, Monday = 2, Tuesday = 3, Wednesday = 4, Thursday = 5, Friday = 6, Saturday = 7]
+
+4. Recoding "OR_DAY" to display to display the word "Day" if the numeric value in the "OR_DAY" variable was equal to the numeric value in the "weekday" variable.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(ResLastCallDate = ymd(ResLastCallDate)) %>% 
+  mutate(weekday = weekdays(ResLastCallDate)) %>% 
+  mutate(weekday = recode(
+    weekday,
+    "Sunday" = "1",
+    "Monday" = "2",
+    "Tuesday" = "3",
+    "Wednesday" = "4",
+    "Thursday" = "5",
+    "Friday" = "6",
+    "Saturday" = "7")) %>% 
+  mutate(OR_DAY = case_when(weekday == OR_DAY~"Day"
+  )
+)
+```
+
+Now we can create the "MocaOrientation" variable by combining "OR_DATE_date", "OR_DATE_year", "OR_DATE_month", "OR_DAY", and "OR_PLACECITY".
+
+```{r}
+call_history$MocaOrientation = paste(
+  call_history$OR_DATE_date,
+  call_history$OR_DATE_year,
+  call_history$OR_DATE_month,
+  call_history$OR_DAY,
+  call_history$OR_PLACECITY,
+  sep = ","
+)
+```
+
+### PH_ALZ_FLWUP
+
+MDAC codebook = "From the questions we just completed, it seems that you may have some changes in your thinking or memory. One of our community partners, the Alzheimer's Association works with people who may have changes with their thinking or memory. Would it be alright if I share your information with the Alzheimer's Association so they can call you?"
+
+This variable contains the same information as PhoneAlzheimerFollowUp in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(PhoneAlzheimerFollowUp = recode(
+   PH_ALZ_FLWUP,
+   "1" = "Yes",
+   "2" = "No",
+   "3" = "Hang up"
+  )
+)
+```
+
+### PH_BAT_FLWUP
+
+MDAC codebook = "Finally, one of our partners, the UTHealth Trauma and Resilience Center is doing a study about treating depression and social isolation. You may also be eligible to participate in that study. Would it be alright if I share your information with Dr. Melba Hernandez at the UTHeatlh Trauma and Resilience Center so that they can call you?"
+
+This variable contains the same information as PhoneBatPilotFollowUp in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(PhoneBatPilotFollowUp = recode(
+   PH_BAT_FLWUP,
+   "1" = "Yes",
+   "2" = "No",
+   "9" = "Hang up"
+  )
+)
+```
+
+### PH_WNT_FLWUP
+
+MDAC codebook = "Thank you for answering all those questions. I know it was a lot. Now I would like to schedule that follow-up visit with you in the next two weeks.  What day and time works best for you?"
+
+This variable contains the same information as PhoneWantFollowUp in FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+ mutate(PhoneWantFollowUp = recode(
+   PH_WNT_FLWUP,
+   "1" = "Yes",
+   "2" = "Refused"
+  )
+)
+```
+
+### SCORE
+
+MDAC codebook = [Calculated variable] computes the final score.
+
+This variable contains the same information as cScore in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(cScore = SCORE)
+
+```
+
+### LastCallStartTime
+
+MDAC codebook = Start time of call "HH:mm" format.
+
+This variable contains the same information as CallTime in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(CallTime = LastCallStartTime)
+
+```
+
+### resCodeResult
+
+MDAC codebook = Call result.
+
+This variable contains similar information to AnsweredBy in FM Pro, but includes additional response options. For this reason, it will be labeled as md_resCodeResult upon export to FM Pro.
+
+```{r}
+call_history <- call_history %>% 
+  mutate(md_AnsweredBy = recode(
+    resCodeResult,
+    "01" = "Continue",
+    "49" = "Connection Lost",
+    "51" = "Disconnected - No longer in service",
+    "40" = "Answering Machine/Left Message",
+    "46" = "No Answer",
+    "60" = "Wrong Number",
+    "47" = "Busy",
+    "43" = "Call Back",
+    "48" = "Partial Call Back",
+    "52" = "Computer/Fax",
+    "42" = "Answering Machine - No Msg Left",
+    "71" = "Hard Refusal",
+    "CO" = "Complete",
+    "W0" = "Time out",
+    "W1" = "More than one session attempted on the same case",
+    "W2" = "Project inactiviated while session in progress",
+    "W3" = "Disconnected by supervisor",
+    "70" = "Do Not Call",
+    "72" = "Soft Refusal",
+    "74" = "Refusal - Did not receive incentive from prev. survey",
+    "12" = "Screened Out (Wrong phone)",
+    "11" = "Screened Out (Wrong ZIP)",
+    "13" = "Screened out (Age Range)",
+    "35" = "Hang up",
+    "26" = "Language Barrier",
+    "44" = "Indefinite callback",
+    "W4" = "Screened out",
+    "W5" = "Out of quota",
+    "W6" = "Interrupted",
+    "90" = "Telephony issue",
+    "P1" = "No answer",
+    "P2" = "Busy",
+    "P3" = "Operator Intercept: Tri-Tone and ISDN codes received from provider.",
+    "P4" = "Answered and dropped: Possible if using predictive dialing when no interviewer is available to take the connected call.",
+    "P5" = "Answering Machine: Possible if Answering Machine detection is activated.",
+    "P6" = "Fax, Modem: Detected (using Call Progress Analysis) after the call is connected.",
+    "P7" = "No Ring, No Dial Tone, Cancelled: Errors on the internal loop.",
+    "P8" = "Default Value",
+    "P9" = "In Do Not Call List",
+    "25" = "Language Barrier - SPANISH",
+    "30" = "Patient deceased or impaired",
+    "31" = "Hearing impaired",
+    "98" = "Not elligible",
+    "32" = "Patient impaired or disabled",
+    "97" = "Refused follow-up",
+    "02" = "Phone given to patient",
+    "03" = "Patient deceased",
+    "04" = "Patient permanently impaired or disabled",
+    "05" = "Patient currently unavailable",
+    "41" = "Wrong number",
+    "50" = "Terminate partial (indefinite callback)"
+  )
+)
+```
+
+
+### SCHED_FLWUP
+
+MDAC codebook = [INTERVIEWER, select date/time for follow-up visit].
+
+This variable contains the same information as AppointmentDate and AppointmentTime in FM Pro. SCHED_FLWUP contains both date and time values which are separated into their resepctive FM variables.
+
+AppointmentTime is formatted as H:M:S.
+
+```{r}
+call_history$AppointmentTime <- format(as.POSIXct(
+  call_history$SCHED_FLWUP, 
+  "%Y-%m-%d %H:%M:%S", 
+  tz = ""),
+  format = "%H:%M"
+)
+```
+
+AppointmentDate is formatted as month/day/year.
+
+```{r}
+call_history$AppointmentDate <- format(as.Date(
+  call_history$SCHED_FLWUP,
+  "%Y-%m-%d"), 
+  format = "%m/%d/%Y"
+)
+```
+
+### ResIntervCall
+
+MDAC codebook = Interviewer ID.
+
+This variable contains the same information as PhoneRecruiter in FM Pro.
+
+```{r}
+
+call_history <- call_history %>% 
+  mutate(PhoneRecruiter = ResIntervCall)
+
+```
+
+## Dropping observations that were not called
+
+Dropping the observations that were never called. These observations are missing values for the following variables: ResLastCallDate, ResIntervCall, LastCallStartTime, resCodeResult, CaseResult, and S_RES
+
+```{r}
+call_history<-call_history[!(is.na(call_history$ResLastCallDate) &
+  is.na(call_history$LastCallStartTime) &
+  is.na(call_history$resCodeResult) &
+  is.na(call_history$CaseResult) &
+  is.na(call_history$S_RES)),]
+```
+
+## Creating row count variable
+
+For table Phone Recruitment, the database is expecting data from the most recent callattempt per participant.
+
+```{r}
+call_history <- call_history %>% group_by(MedstarID) %>% 
+  arrange(MedstarID,ResLastCallDate,LastCallStartTime) %>%
+  mutate(call_attempt = row_number())
+```
+
+
+## Grouping variables
+
+Pulling the original FileMaker variables to their respective M Davis groupings (PhoneRecruitment, CallLog, and ParticipantScheduler) based on the expected file format laid out in the "M Davis Filemaker Required Fields" Microsoft Excel Sheet.
+
+Note: the Phone Recruitment data frame requires only the most recent call attempt to be included.
+
+```{r}
+PhoneRecruitment <- call_history %>% filter(call_attempt == max(call_attempt)) %>%
+  select(
+  xMocaSerial7_1,
+  xMocaSerial7_2,
+  xMocaSerial7_3,
+  xMocaSerial7_4,
+  xMocaSerial7_5,
+  xMocaOrientationDate,
+  xRecordStatus,
+  MedstarID,
+  EntryDate,
+  md_PhoneInitialRequest,
+  PhoneBetterTime,
+  PhoneMoreInfo,
+  PhoneEligibleConsent,
+  PostcardRecall,
+  PhoneHearingDevice,
+  PhoneHearingDeviceIn,
+  PhoneHearingCheck,
+  MocaMemory1,
+  MocaMemory2,
+  MocaDigitForward,
+  MocaDigitBackward,
+  MocaVigilance,
+  MocaSerial7,
+  MocaSentenceRep,
+  MocaVerbFluency,
+  md_MocaAbstraction,
+  MocaDelayRecall,
+  MocaOrientation,
+  PhoneAlzheimerFollowUp,
+  PhoneBatPilotFollowUp,
+  PhoneWantFollowUp,
+  cScore) %>%
+  mutate(MocaOrientation = str_replace_all(MocaOrientation," ","")) %>% 
+  mutate(MocaOrientation = str_replace_all(MocaOrientation,"NA",""))%>%
+  mutate(MocaDelayRecall = str_replace_all(MocaDelayRecall,"NA",""))
+
+CallLog <- call_history  %>%  select(
+  MedstarID,
+  CallDate,
+  CallTime,
+  md_AnsweredBy)
+
+ParticipantScheduler <- call_history  %>%  select(
+  MedstarID,
+  AppointmentDate,
+  AppointmentTime,
+  PhoneRecruiter)
+```
+
+
+# Export cleaned files
+
+
+```{r}
+write_csv(PhoneRecruitment, "/Users/krist/Documents/UTHSPH/R Club/phone_recruitment_20220307.csv", na = "")
+```
+
+```{r}
+write_csv(CallLog, "/Users/krist/Documents/UTHSPH/R Club/call_history_20220307.csv", na = "")
+```
+
+```{r}
+write_csv(ParticipantScheduler, "/Users/krist/Documents/UTHSPH/R Club/participant_scheduler_20220307.CSV", na = "")
+```
+
+
+
+
+
+# 🗑Clean up
+
+```{r}
+rm(list = ls())
+```
+
+```{r echo = FALSE}
+sessionInfo()
+```

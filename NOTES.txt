@@ -1,0 +1,3 @@
+MDAC preprocessing notes
+
+**Renaming variables vs. creating new variables.** There are some cases where the values in an MDAC variable align well enough with the values in a FM Pro variable that we could simply rename the MDAC variable to the FM Pro name. At least for now, we will not do so. Instead, we will create a new variable with the FM Pro name that contains the MDAC values. We do this just in cases there's ever a 

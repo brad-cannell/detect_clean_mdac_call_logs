@@ -39,3 +39,9 @@ vignettes/*.pdf
 .Renviron
 
 .DS_Store
+
+codebook/M Davis Filemaker Required Fields (Deidentified).xlsx
+
+codebook/M Davis Filemaker Required Fields.xlsx
+
+data/
