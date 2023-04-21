@@ -1,0 +1,83 @@
+---
+title: "generate_records_multi_scores_incomplete"
+author: "Yixiao Chen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#load the package
+```{r}
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(readr)
+```
+
+# create a list of file names and create an empty data frame to store the results
+```{r}
+data <- c("1833_DETECT_CallExport_20220524.CSV",
+          "1833_DETECT_CallExport_20220613.CSV",
+          "1833_DETECT_CallExport_20220623.CSV",
+          "1833_DETECT_CallExport_20220713.CSV",
+          "1833_DETECT_CallExport_20220726.CSV",
+          "1833_DETECT_CallExport_20220808.CSV",
+          "1833_DETECT_CallExport_20220825.CSV",
+          "1833_DETECT_CallExport_20220912.CSV",
+          "1833_DETECT_CallExport_20220922.CSV",
+          "1833_DETECT_CallExport_20221011.CSV",
+          "1833_DETECT_CallExport_20221024.CSV",
+          "1833_DETECT_CallExport_20221109.CSV",
+          "1833_DETECT_CallExport_20221123.CSV",
+          "1833_DETECT_CallExport_20221209.CSV",
+          "1833_DETECT_CallExport_20221223.CSV",
+          "1833_DETECT_CallExport_20230110.CSV",
+          "1833_DETECT_CallExport_20230125.CSV",
+          "1833_DETECT_CallExport_20230210.CSV",
+          "1833_DETECT_CallExport_20230222.CSV",
+          "1833_DETECT_CallExport_20230310.CSV",
+          "1833_DETECT_CallExport_20230324.CSV")
+
+
+results <- data.frame(data_file = character(),
+                      unique_ids = character(),
+                      resCodeResult = character(),
+                      score = character()
+                      )
+```
+
+# loop through the files and process each one
+# get the IDs that have multiple scores but don't have a completed code
+# add the results to the data frame
+```{r}
+for (file_name in data) {
+  call_history <- read_csv(paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/", file_name))
+  
+  df <- call_history %>%
+    group_by(PTCARERPTNUM) %>%
+    mutate(non_miss_score = sum(!is.na(SCORE))) %>%
+    filter(non_miss_score > 1) %>%
+    summarise(unique_ids = paste0(PTCARERPTNUM),
+              score = paste0(SCORE),
+              resCodeResult = paste0(resCodeResult)) %>%
+    mutate(data_file = file_name)
+  
+  results <- bind_rows(results, df)
+}
+```
+
+# filter out PTCARERPTNUM with resCodeResult equal to CO, 97, or 98
+```{r}
+results <- results %>%
+  group_by(PTCARERPTNUM) %>%
+  filter(!any(resCodeResult %in% c("CO", "97", "98"))) %>%
+  ungroup()
+```
+
+# write the results to a CSV file
+```{r}
+write_csv(results, "records_multi_scores_incomplete.csv")
+```
+
