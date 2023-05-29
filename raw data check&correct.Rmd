@@ -17,8 +17,9 @@ library(stringr)
 library(readr)
 ```
 
-```{r}
 # create an empty data frame to store the results
+
+```{r}
 results <- data.frame(data_file = character(),
                       unique_ids = character(),
                       resCodeResult = character(),
@@ -33,6 +34,7 @@ results <- data.frame(data_file = character(),
 additional_data <- read_csv("~/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston (Archive)/DETECT/Preprocess MDAC Call Logs/data/1833_DETECT_CallHistory_20220307.CSV")
 ```
 
+
 ## check if any ID have scores after getting a completed code(69967, 0deb0)
 
 ```{r}
@@ -43,6 +45,7 @@ df1 <- additional_data %>%
   filter(any(resCodeResult %in% c("CO", "97", "98"))) %>%
   select(PTCARERPTNUM,resCodeResult,ResLastCallDate)
 ```
+
 
 ## check if any ID with multiple scores but don't have a completed code (144e7)
 
@@ -107,6 +110,7 @@ rows_with_id_144e7
 write_csv(correct_data, "~/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston (Archive)/DETECT/Preprocess MDAC Call Logs/data/correct_1833_DETECT_CallHistory_20220307.CSV")
 ```
 
+
 # For other raw data
 
 ```{r}
@@ -139,6 +143,7 @@ data <- c("1833_DETECT_CallExport_20220524.CSV",
           "1833_DETECT_CallExport_20230522v2.CSV")
 ```
 
+
 ## check if any ID have scores after getting a completed code(no records have this issue)
 
 ```{r}
@@ -154,6 +159,7 @@ df1 <- call_history %>%
 
 }
 ```
+
 
 ## check if any ID with multiple scores but don't have a completed code (6 records, see detailed in issue&reason.csv)
 
@@ -184,6 +190,7 @@ results <- results %>%
 ## manually check if those names have different ID 
 ### for this 6 records, no participants have different MedstarID 
 
+
 ## Correct the records and generate new csv file
 ### manually correct
 
@@ -192,6 +199,7 @@ data1 <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/18
 data2 <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/1833_DETECT_CallExport_20221109.CSV")
 data3 <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/1833_DETECT_CallExport_20230110.CSV")
 ```
+
 
 ### check the corrected data
 
@@ -207,6 +215,7 @@ data33 <- data3 %>%
   mutate(across(1:62, ~ ifelse(ResLastCallDate == 20230104 & MEDSTARID == "65195", NA, .))
          )
 ```
+
 
 ### export the corrected data
 
