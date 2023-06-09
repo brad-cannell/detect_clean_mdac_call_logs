@@ -83,7 +83,9 @@ correct_data <- data %>%
   mutate(across(1:62, ~ ifelse(ResLastCallDate == 20220225 & MEDSTARID == "69967" | ResLastCallDate == 20220305 & MEDSTARID == "0deb0", NA, .))
          )
 
-correct_data$OR_DATE[correct_data$PTCARERPTNUM == "1626da69bff94d918f6441c1a08144e7"] <- 20211207
+correct_data <- correct_data %>%
+  mutate(OR_DATE = ifelse(PTCARERPTNUM == "1626da69bff94d918f6441c1a08144e7", 20211207, OR_DATE),# time is not same with the records on FM Pro system 
+         SCORE = ifelse(PTCARERPTNUM == "1626da69bff94d918f6441c1a08144e7", 15, SCORE))# original cScore not correct 
 
 ```
 

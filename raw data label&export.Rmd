@@ -19,7 +19,7 @@ library(sjmisc)
 ## correct_1833_DETECT_CallHistory_20220307
 
 ```{r}
-#call_history <- read_csv("~/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston (Archive)/DETECT/Preprocess MDAC Call Logs/data/correct_1833_DETECT_CallHistory_20220307.CSV")
+call_history <- read_csv("~/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston (Archive)/DETECT/Preprocess MDAC Call Logs/data/correct_1833_DETECT_CallHistory_20220307.CSV")
 ```
 
 ## creat a list for importing other raw data
@@ -1099,21 +1099,25 @@ ParticipantScheduler <- call_history  %>%  select(
 ## data correct_1833_DETECT_CallHistory_20220307
 
 ```{r}
-#write_csv(PhoneRecruitment, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/PhoneRecruitment/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
+write_csv(PhoneRecruitment, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/PhoneRecruitment/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
 
-#write_csv(CallLog, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/CallLog/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
+write_csv(CallLog, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/CallLog/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
 
-#write_csv(ParticipantScheduler, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/ParticipantScheduler/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
+write_csv(ParticipantScheduler, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/ParticipantScheduler/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
+```
+
+```{r}
+data <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/PhoneRecruitment/FM_correct_1833_DETECT_CallHistory_20220307.CSV")
 ```
 
 ## other raw data
 
 ```{r}
-write_csv(PhoneRecruitment, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/PhoneRecruitment/FM_", file_name), na = "")
+#write_csv(PhoneRecruitment, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/PhoneRecruitment/FM_", file_name), na = "")
 
-write_csv(CallLog, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/CallLog/FM_", file_name), na = "")
+#write_csv(CallLog, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/CallLog/FM_", file_name), na = "")
 
-write_csv(ParticipantScheduler, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/ParticipantScheduler/FM_", file_name), na = "")
+#write_csv(ParticipantScheduler, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/ParticipantScheduler/FM_", file_name), na = "")
 ```
 
 # 🗑Clean up
