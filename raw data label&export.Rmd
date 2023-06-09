@@ -1,15 +1,12 @@
 ---
-title: "new call_logs_finalcode_11042022"
+title: "raw data label&export"
+author: "Yixiao Chen"
+output: html_notebook
 ---
 
-# 📝 Instructions
+# 📦Load packages
 
-Let's add some text here about what this file does and how to use it. 
-
-
-# 📦 Load packages
-
-```{r}
+```{r message = FALSE}
 library(dplyr, warn.conflicts = FALSE)
 library(readr)
 library(tidyr)
@@ -18,223 +15,52 @@ library(lubridate, warn.conflicts = FALSE)
 library(sjmisc)
 ```
 
-
-# 📥 Import data 
-
-Let's add some text here about where the data comes from...
+# 📥Import data 
+## correct_1833_DETECT_CallHistory_20220307
 
 ```{r}
-call_history <- read_csv("/Users/bradcannell/Library/CloudStorage/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston/01 Research/DETECT Teams/Preprocess MDAC Call Logs/data/1833_DETECT_CallHistory_20220307.CSV")
+call_history <- read_csv("~/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston (Archive)/DETECT/Preprocess MDAC Call Logs/data/correct_1833_DETECT_CallHistory_20220307.CSV")
 ```
 
+## creat a list for importing other raw data
+
+```{r}
+file_name <- (#"1833_DETECT_CallExport_20220524.CSV"
+          #"1833_DETECT_CallExport_20220613.CSV"
+          #"1833_DETECT_CallExport_20220623.CSV"
+          #"1833_DETECT_CallExport_20220713.CSV"
+          #"1833_DETECT_CallExport_20220726.CSV"
+          #"1833_DETECT_CallExport_20220808.CSV"
+          #"1833_DETECT_CallExport_20220825.CSV"
+          #"1833_DETECT_CallExport_20220912.CSV"
+          #"correct_1833_DETECT_CallExport_20220922.CSV"
+          #"1833_DETECT_CallExport_20221011.CSV"
+          #"1833_DETECT_CallExport_20221024.CSV"
+          #"1833_DETECT_CallExport_20221109.CSV"
+          #"1833_DETECT_CallExport_20221123.CSV"
+          #"correct_1833_DETECT_CallExport_20221109.CSV"
+          #"1833_DETECT_CallExport_20221223.CSV"
+          #"correct_1833_DETECT_CallExport_20230110.CSV"
+          #"1833_DETECT_CallExport_20230125.CSV"
+          #"1833_DETECT_CallExport_20230210.CSV"
+          #"1833_DETECT_CallExport_20230222.CSV"
+          #"1833_DETECT_CallExport_20230310.CSV"
+          #"1833_DETECT_CallExport_20230324.CSV"
+          #"1833_DETECT_CallExport_20230410.CSV"
+          #"1833_DETECT_CallExport_20230424.CSV"
+          #"1833_DETECT_CallExport_20230510.CSV"
+          #"1833_DETECT_CallExport_20230522.CSV"
+          #"1833_DETECT_CallExport_20230522v2.CSV"
+          )
+```
+
+## import data
+
+```{r}
+call_history <- read_csv(paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/", file_name))
+```
 
 # 🚧Data management
-
-## Multiple records
-
-Many MedStar ID's have more than one record in the MDAC data. That is expected. The protocol is for MDAC to call each person more than one time if they can't complete the call the first time. However, there are a small number of MedStar ID's that have multiple _completed_ calls (e.g., 69967 and 0deb0). That is _not_ expected. We need to make sure that the data we process and upload to FM Pro contains only one completed call per MedStar ID. 
-
-These multiple ID's were also one source of the problem we had with our MoCA scores not matching MDAC's MoCA scores.
-
-Check for multiple completed calls
-
-From Daniel Goscicki, 2022-03-07:
-
-"S_RES and resCodeResult and CaseResult are all slightly different. The one major thing is that S_RES and CaseResult both correspond to the case result and not the call result. 
-
-resCodeResult is the disposition of the specific call attempt. So, for a record that has multiple rows in the data file, with each row corresponding to one call attempt, the resCodeResult column will show you the disposition of each individual call and therefore be potentially different for each row. 
-
-CaseResult will also be different for each call attempt, and should generally match the resCodeResult, but technically it indicates the case result rather than the call disposition. There are very rare circumstances when these two things might be different on the same call attempt, but to be honest it’s so rare that I don’t even remember what those circumstances are.
-
-S_RES has two very important differences. First, in the call history data, S_RES will have a value equal to the current case result at the time of the data export, and this value will be the same for all rows of the same record, regardless of the call attempt disposition (as opposed to CaseResult, which also indicated case result, but at the time of each particular call attempt). Second, S_RES is not updated when the system auto-dispositions a call, rather than an interviewer manually choosing a disposition. This is indicated by all of the “P” codes. For example, P1 for “no answer”. So, if all of the call attempts on a particular record were auto-dispositioned (all of the values in resCodeResult are “P” codes), then S_RES will be blank for all of the rows corresponding to that record. If, however, the first call attempt was a 46 for “answering machine” for example, which is manually chosen by an interviewer, and then all of the remaining attempts were “P” codes, then S_RES will have a value of “46” for all of the rows corresponding to that record, because is will have been updated with the 46 when the interviewer dispositioned the case, and then not updated again since the subsequent attempts were auto-dispositioned."
-
-My first thought was that we would want to use resCodeResult to filter out cases with multiple completions. However, when reviewing known cases with multiple completions (e.g., 69967 and 0deb0) resCodeResult wasn't marked complete in all rows (any rows in the case of 0deb0).
-
-For 69967:
-* resCodeResult = CO (Complete) and SCORE = 17
-* resCodeResult = 72 (Soft refusal) and SCORE = 13
-Why do they have a score if they refused? 
-Also, the first call date was 2021-10-20 and the second call date was 2022-02-25. Why the big gap?
-
-For 0deb0:
-* resCodeResult = 98 (Not Eligible) and SCORE = 14
-* resCodeResult = 1 (Continue) and SCORE = 14
-Why do they have a score if they were not eligible?
-
-```{r}
-call_history %>% 
-  filter(MEDSTARID == "69967")
-```
-
-To find potentially problematic cases, I think the best strategy is to search for MedStar ID's with multiple non-missing SCORE rows.
-
-```{r}
-call_history %>% 
-  # For testing
-  # filter(MEDSTARID == "69967") %>% 
-  group_by(PTCARERPTNUM) %>% 
-  mutate(non_miss_score = sum(!is.na(SCORE))) %>% 
-  filter(non_miss_score > 1)
-```
-
-I don't think this works either. It looks like the MoCA results are carried over into every row if they exist in any row. I'm going to double-check that now. 
-
-How people have a score at all?
-
-```{r}
-call_history %>% 
-  filter(!is.na(SCORE)) %>% 
-  group_by(PTCARERPTNUM) %>% 
-  mutate(
-    row = row_number(),
-    max_row = max(row)
-  ) %>%
-  ungroup() %>% 
-  summarise(
-    rows = n(),
-    unique_ids = length(unique(PTCARERPTNUM)),
-    one_row = sum(max_row == 1)
-  )
-```
-There are 475 rows with a MoCA score. 296 unique MedStar ID's are represented in those 475 rows. 177 MedStar ID's only have 1 row. So, there should be 276 - 177 = 119 MedStar Id's with more than one row.
-
-How people have a score in more than one row?
-
-```{r}
-call_history %>% 
-  group_by(PTCARERPTNUM) %>% 
-  mutate(non_miss_score = sum(!is.na(SCORE))) %>% 
-  filter(non_miss_score > 1) %>% 
-  mutate(row = row_number()) %>% 
-  ungroup() %>% 
-  summarise(
-    rows = n(),
-    unique_ids = length(unique(PTCARERPTNUM))
-  )
-```
-
-119 MedStar ID's have a non-missing value for SCORE in multiple rows, which is the expected number. It looks like a person who has a score in _any_ row, has the score in every row. So, we can't check for multiple rows with a SCORE. 
-
-How many MedStar IDs with more than one score value have non-matching score values?
-
-```{r}
-call_history %>% 
-  group_by(PTCARERPTNUM) %>% 
-  mutate(non_miss_score = sum(!is.na(SCORE))) %>% 
-  filter(non_miss_score > 1) %>% 
-  mutate(max_score = max(SCORE)) %>% 
-  filter(SCORE != max_score)
-```
-
-Just one MedStar ID (69967).
-
-Additionally, there are many cases with SCOREs that don't have a completed code.
-
-```{r}
-call_history %>% 
-  # For testing
-  # filter(MEDSTARID == "69967") %>% 
-  group_by(PTCARERPTNUM) %>% 
-  mutate(non_miss_score = sum(!is.na(SCORE))) %>% 
-  filter(non_miss_score > 1) %>% 
-  select(PTCARERPTNUM, MEDSTARID, resCodeResult, CaseResult, S_RES, SCORE) %>% 
-  mutate(
-    CaseResult_CO = str_detect(CaseResult, "CO"),
-    any_CaseResult_CO = any(CaseResult_CO)
-  ) %>% 
-  filter(any_CaseResult_CO == FALSE) %>% 
-  ungroup() %>% 
-  summarise(
-    rows = n(),
-    unique_ids = length(unique(PTCARERPTNUM))
-  )
-```
-
-There are 73 MedStar IDs with a MoCA score, but no CaseResult that equals complete. 
-
-I think we need to talk to Daniel about this. First, let's check more current data. 
-
-```{r}
-df <- read_csv("/Users/bradcannell/Library/CloudStorage/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston/01 Research/DETECT Not Teams/shared/DETECT Shared with MDAC/Outbound call logs/1833_DETECT_CallExport_20221109.CSV")
-```
-
-How many ID's have more than one row with a score?
-
-```{r}
-df %>% 
-  group_by(PTCARERPTNUM) %>% 
-  mutate(non_miss_score = sum(!is.na(SCORE))) %>% 
-  filter(non_miss_score > 1) %>% 
-  mutate(row = row_number()) %>% 
-  ungroup() %>% 
-  summarise(
-    rows = n(),
-    unique_ids = length(unique(PTCARERPTNUM))
-  )
-```
-
-There are 9 MedStar IDs with a SCORE in more than one row.
-
-Is the score the same in every row?
-
-```{r}
-df %>% 
-  group_by(PTCARERPTNUM) %>% 
-  mutate(non_miss_score = sum(!is.na(SCORE))) %>% 
-  filter(non_miss_score > 1) %>% 
-  mutate(max_score = max(SCORE)) %>% 
-  ungroup() %>% 
-  summarise(sum(SCORE == max_score))
-```
-
-The score is the same in every row.
-
-Are there are any cases with SCOREs that don't have a completed code?
-
-```{r}
-df %>% 
-  group_by(PTCARERPTNUM) %>% 
-  mutate(non_miss_score = sum(!is.na(SCORE))) %>% 
-  filter(non_miss_score > 1) %>% 
-  select(PTCARERPTNUM, MEDSTARID, resCodeResult, CaseResult, S_RES, SCORE) %>% 
-  mutate(
-    CaseResult_CO = str_detect(CaseResult, "CO"),
-    any_CaseResult_CO = any(CaseResult_CO)
-  ) %>% 
-  filter(any_CaseResult_CO == FALSE) %>% 
-  ungroup() %>% 
-  summarise(
-    rows = n(),
-    unique_ids = length(unique(PTCARERPTNUM))
-  )
-```
-
-Yes, there is one ID with a score and no completed code. We should talk to Daniel about this. 
-
-
-
-
-
-
-
-```{r}
-# Separating OR_DATE into year, month, and day columns
-
-OR_DATE_separated <- t(sapply(call_history$OR_DATE, function(x) substring(x, first=c(1,5,7), last=c(4,6,8))))
-
-```
-
-```{r}
-call_history <- call_history %>% 
- mutate(OR_PLACECITY = recode(
-   OR_PLACECITY,
-   "1" = "Place",
-   "2" = "City",
-   "12" = "Place,City",
-   "21" = "Place,City"
-  )
-)
-```
 
 ## Recoding variables
 
@@ -527,9 +353,10 @@ MDAC codebook = "Is it [hearing device] in place right now? [NOTE: If the patien
 This variable contains the same information as PhoneHearingDeviceIn in FM Pro.
 
 ```{r}
-call_history$PH_HEAR_DEVI <-as.double(call_history$PH_HEAR_DEVI)
 call_history <- call_history %>% 
-  mutate(PhoneHearingDeviceIn = recode(
+  mutate(
+    PH_HEAR_DEVI = as.character(PH_HEAR_DEVI),
+    PhoneHearingDeviceIn = recode(
     PH_HEAR_DEVI,
     "1" = "Yes",
     "9" = "Refused/hang up"
@@ -593,7 +420,6 @@ call_history <- call_history %>%
     "1235" = "Face,Velvet,Church,Red",
     "1245" = "Face,Velvet,Daisy,Red",
     "1345" = "Face,Church,Daisy,Red",
-    "2345" = "Velvet,Church,Daisy,Red",
     "12345" = "Face,Velvet,Church,Daisy,Red"
   )
 )
@@ -638,7 +464,6 @@ call_history <- call_history %>%
     "1235" = "Face,Velvet,Church,Red",
     "1245" = "Face,Velvet,Daisy,Red",
     "1345" = "Face,Church,Daisy,Red",
-    "2345" = "Velvet,Church,Daisy,Red",
     "12345" = "Face,Velvet,Church,Daisy,Red"
   )
 )
@@ -956,7 +781,7 @@ call_history$RLCD_day <- as.numeric(call_history$RLCD_day)
 # Creating difference variables to determine if the individual got the date, year, and/or month correct
 
 call_history <- call_history %>% 
-  mutate(OR_DATE_datediff = (RLCD_day-ORD_day)) %>% 
+ mutate(OR_DATE_datediff = (RLCD_day-ORD_day)) %>% 
   mutate(OR_DATE_date = case_when(OR_DATE_datediff == 0~'Date')) %>%
   mutate(OR_DATE_yeardiff = (RLCD_year-ORD_year)) %>% 
   mutate(OR_DATE_year = case_when(OR_DATE_yeardiff == 0~'Year')) %>%
@@ -1066,6 +891,7 @@ This variable contains the same information as cScore in FM Pro.
 
 call_history <- call_history %>% 
   mutate(cScore = SCORE)
+
 ```
 
 ### LastCallStartTime
@@ -1268,30 +1094,31 @@ ParticipantScheduler <- call_history  %>%  select(
   PhoneRecruiter)
 ```
 
+
 # Export cleaned files
+## data correct_1833_DETECT_CallHistory_20220307
 
 ```{r}
-write_csv(PhoneRecruitment, "~/Desktop/RA/call/phone_recruitment_20221117.csv", na = "")
+write_csv(PhoneRecruitment, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/PhoneRecruitment/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
+
+write_csv(CallLog, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/CallLog/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
+
+write_csv(ParticipantScheduler, "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/ParticipantScheduler/FM_correct_1833_DETECT_CallHistory_20220307.CSV", na = "")
 ```
 
 ```{r}
-write_csv(PhoneRecruitment, "/Users/krist/Documents/UTHSPH/R Club/phone_recruitment_20220307.csv", na = "")
+data <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/PhoneRecruitment/FM_correct_1833_DETECT_CallHistory_20220307.CSV")
 ```
+
+## other raw data
 
 ```{r}
-write_csv(CallLog, "/Users/krist/Documents/UTHSPH/R Club/call_history_20220307.csv", na = "")
+#write_csv(PhoneRecruitment, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/PhoneRecruitment/FM_", file_name), na = "")
+
+#write_csv(CallLog, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/CallLog/FM_", file_name), na = "")
+
+#write_csv(ParticipantScheduler, paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/data for import to FM Pro/ParticipantScheduler/FM_", file_name), na = "")
 ```
-
-```{r}
-write_csv(ParticipantScheduler, "/Users/krist/Documents/UTHSPH/R Club/participant_scheduler_20220307.CSV", na = "")
-```
-
-```{r}
-call_history %>% filter(MedstarID=="52cd4e42f3234872bca71e580b069967")
-```
-
-
-
 
 # 🗑Clean up
 
@@ -1302,4 +1129,3 @@ rm(list = ls())
 ```{r echo = FALSE}
 sessionInfo()
 ```
-

@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # import packages
+
 ```{r}
 library(tidyr)
 library(dplyr)
@@ -16,8 +17,9 @@ library(stringr)
 library(readr)
 ```
 
-```{r}
 # create an empty data frame to store the results
+
+```{r}
 results <- data.frame(data_file = character(),
                       unique_ids = character(),
                       resCodeResult = character(),
@@ -27,11 +29,14 @@ results <- data.frame(data_file = character(),
 
 # For data 1833_DETECT_CallHistory_20220307.CSV
 ## import data
+
 ```{r}
 additional_data <- read_csv("~/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston (Archive)/DETECT/Preprocess MDAC Call Logs/data/1833_DETECT_CallHistory_20220307.CSV")
 ```
 
+
 ## check if any ID have scores after getting a completed code(69967, 0deb0)
+
 ```{r}
 df1 <- additional_data %>%
   group_by(PTCARERPTNUM) %>%
@@ -41,7 +46,9 @@ df1 <- additional_data %>%
   select(PTCARERPTNUM,resCodeResult,ResLastCallDate)
 ```
 
+
 ## check if any ID with multiple scores but don't have a completed code (144e7)
+
 ```{r}
 # get the IDs that have multiple scores but don't have a completed code
   data <- additional_data %>%
@@ -68,16 +75,22 @@ df2 <- results %>%
 
 ## Correct the records and generate new csv file
 ### manually correct 
+
 ```{r}
 data <- read_csv("~/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston (Archive)/DETECT/Preprocess MDAC Call Logs/data/1833_DETECT_CallHistory_20220307.CSV")
+
 correct_data <- data %>%
   mutate(across(1:62, ~ ifelse(ResLastCallDate == 20220225 & MEDSTARID == "69967" | ResLastCallDate == 20220305 & MEDSTARID == "0deb0", NA, .))
          )
-correct_data$OR_DATE[correct_data$PTCARERPTNUM == "1626da69bff94d918f6441c1a08144e7"] <- 20211207
+
+correct_data <- correct_data %>%
+  mutate(OR_DATE = ifelse(PTCARERPTNUM == "1626da69bff94d918f6441c1a08144e7", 20211207, OR_DATE),# time is not same with the records on FM Pro system 
+         SCORE = ifelse(PTCARERPTNUM == "1626da69bff94d918f6441c1a08144e7", 15, SCORE))# original cScore not correct 
 
 ```
 
 ### check the corrected data
+
 ```{r}
 ## check the correct data
 rows_with_id_69967 <- correct_data %>%
@@ -94,11 +107,14 @@ rows_with_id_144e7
 ```
 
 ### export the corrected data
+
 ```{r}
 write_csv(correct_data, "~/OneDrive-TheUniversityofTexasHealthScienceCenteratHouston (Archive)/DETECT/Preprocess MDAC Call Logs/data/correct_1833_DETECT_CallHistory_20220307.CSV")
 ```
 
+
 # For other raw data
+
 ```{r}
 # create a list of file names
 data <- c("1833_DETECT_CallExport_20220524.CSV",
@@ -129,7 +145,9 @@ data <- c("1833_DETECT_CallExport_20220524.CSV",
           "1833_DETECT_CallExport_20230522v2.CSV")
 ```
 
+
 ## check if any ID have scores after getting a completed code(no records have this issue)
+
 ```{r}
 for (file_name in data) {
   call_history <- read_csv(paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/", file_name))
@@ -144,7 +162,9 @@ df1 <- call_history %>%
 }
 ```
 
+
 ## check if any ID with multiple scores but don't have a completed code (6 records, see detailed in issue&reason.csv)
+
 ```{r}
 for (file_name in data) {
   call_history <- read_csv(paste0("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/", file_name))
@@ -172,20 +192,38 @@ results <- results %>%
 ## manually check if those names have different ID 
 ### for this 6 records, no participants have different MedstarID 
 
+
 ## Correct the records and generate new csv file
 ### manually correct
+
 ```{r}
-data <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/1833_DETECT_CallExport_20220922.CSV")
+data1 <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/1833_DETECT_CallExport_20220922.CSV")
+data2 <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/1833_DETECT_CallExport_20221109.CSV")
+data3 <- read.csv("~/UTHealth Houston/Cannell, Michael B - Outbound call logs/1833_DETECT_CallExport_20230110.CSV")
 ```
+
 
 ### check the corrected data
+
 ```{r}
-data1 <- data
-data1$resCodeResult[data$MEDSTARID == "ef204" & data$resCodeResult == 71] <- 97
+data11 <- data1
+data11$resCodeResult[data$MEDSTARID == "ef204" & data$resCodeResult == 71] <- 97
+
+data22 <- data2 %>%
+  mutate(across(1:62, ~ ifelse(ResLastCallDate == 20221109 & MEDSTARID == "bf5c8", NA, .))
+         )
+
+data33 <- data3 %>%
+  mutate(across(1:62, ~ ifelse(ResLastCallDate == 20230104 & MEDSTARID == "65195", NA, .))
+         )
 ```
 
+
 ### export the corrected data
+
 ```{r}
 # Save the data as a CSV file
-write.csv(data1, file = "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/correct_1833_DETECT_CallExport_20220922.CSV", row.names = FALSE)
+write.csv(data11, file = "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/correct_1833_DETECT_CallExport_20220922.CSV", row.names = FALSE)
+write.csv(data22, file = "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/correct_1833_DETECT_CallExport_20221109.CSV", row.names = FALSE)
+write.csv(data33, file = "~/UTHealth Houston/Cannell, Michael B - Outbound call logs/correct_1833_DETECT_CallExport_20230110.CSV", row.names = FALSE)
 ```
